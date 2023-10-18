@@ -1,29 +1,31 @@
 import express from "express";
 import UserRoute from "./src/routes/UserRoute.js";
-import Auth from "./src/routes/AuthRoute.js";
+import AuthRoute from "./src/routes/AuthRoute.js";
 import session from "express-session";
-import passport from "./src/auth/passport.js";
+import passport from "passport";
+import bodyParser from "body-parser";
 
 const app = express();
 const port = 3000;
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-app.use(UserRoute);
-app.use(Auth);
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 app.use(
     session({
         secret: "La_Crêperie_du_Parvis",
         resave: false,
         saveUninitialized: false,
-        cookie: { secure: true },
     })
 );
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use(UserRoute);
+app.use(AuthRoute);
 
 app.get("/", (req, res) => {
     res.send("Hello World!");
