@@ -81,11 +81,25 @@ router.get("/signup", function (req, res, next) {
 });
 
 router.post("/signup", async function (req, res, next) {
+    const { nom, prenom, telephone, email, password } = req.body;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     try {
         const user = await prisma.user.create({
             data: {
-                email: req.body.email,
-                password: req.body.password,
+                nom,
+                prenom,
+                telephone,
+                email,
+                password: hashedPassword,
+            },
+            select: {
+                id: true,
+                nom: true,
+                prenom: true,
+                telephone: true,
+                email: true,
+                password: false,
             },
         });
 
@@ -96,6 +110,7 @@ router.post("/signup", async function (req, res, next) {
             res.redirect("/");
         });
     } catch (err) {
+        res.status(400).json({ error: "Failed to create user" });
         return next(err);
     }
 });

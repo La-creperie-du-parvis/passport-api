@@ -20,6 +20,7 @@ model User {
   bookings    Booking[]
   newsletters Newsletter[]
   preferences UserPreference[]
+  Point       Point[]
 }
 
 model Booking {
@@ -40,6 +41,15 @@ model Preference {
   id    Int              @id @default(autoincrement())
   name  String           @db.VarChar(50)
   users UserPreference[]
+}
+
+model Point {
+  id       Int     @id @default(autoincrement())
+  user_id  Int
+  points   Int
+  redeemed Boolean
+  code     String  @unique
+  user     User    @relation(fields: [user_id], references: [id])
 }
 
 model UserPreference {
