@@ -59,15 +59,15 @@ passport.deserializeUser(async function (id, done) {
 
 const router = express.Router();
 
-router.get("/login", function (req, res, next) {
+router.get("/signin", function (req, res, next) {
     res.json({ message: "Endpoint de connexion" });
 });
 
 router.post(
-    "/login",
+    "/signin",
     passport.authenticate("local", {
         successRedirect: "/profile",
-        failureRedirect: "/login",
+        failureRedirect: "/signin",
     })
 );
 
@@ -107,7 +107,7 @@ router.post("/signup", async function (req, res, next) {
             if (err) {
                 return next(err);
             }
-            res.redirect("/");
+            res.redirect("/profile");
         });
     } catch (err) {
         res.status(400).json({ error: "Failed to create user" });
