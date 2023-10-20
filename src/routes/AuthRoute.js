@@ -108,7 +108,7 @@ router.post("/signup", async function (req, res, next) {
             if (err) {
                 return next(err);
             }
-            res.redirect("/profile");
+            res.redirect(`/profile/${user.id}`);
         });
     } catch (err) {
         res.status(400).json({ error: "Failed to create user" });
@@ -116,9 +116,10 @@ router.post("/signup", async function (req, res, next) {
     }
 });
 
-router.get("/connect", function (req, res, next) {
+router.get(`/connect`, function (req, res, next) {
     if (req.user) {
         const user = {
+            id: req.user.id,
             nom: req.user.nom,
             prenom: req.user.prenom,
             email: req.user.email,
@@ -126,31 +127,52 @@ router.get("/connect", function (req, res, next) {
         res.status(200).json({
             message: "Utilisateur connecté",
             user: user,
-            token: jwt.sign(
-                { userId: user._id },
+            token: `Bearer ${jwt.sign(
+                { userId: user },
                 `${process.env.SECRET_TOKEN}`,
                 {
-                    expiresIn: "72h",
+                    expiresIn: "72",
                 }
-            ),
+            )}`,
         });
     } else {
         res.json({ message: "Aucun utilisateur connecté" });
     }
 });
 
-router.get("/profile", function (req, res, next) {
-    if (req.user) {
-        const user = {
-            nom: req.user.nom,
-            prenom: req.user.prenom,
-            email: req.user.email,
-        };
-        res.status(200).json({
-            user: user,
+router.get("/profile", async function (req, res, next) {
+    try {
+        const token = req.headers.authorization.split(" ")[1];
+
+        const decodedToken = jwt.verify(token, `${process.env.SECRET_TOKEN}`);
+
+        const userId = decodedToken.userId.id; //token decodé
+
+        res.locals.userId = userId;
+
+        if (req.body.userId && req.body.userId !== userId) {
+            throw "Invalid user ID";
+        } else {
+            // next();
+            const response = await prisma.user.findUnique({
+                where: {
+                    id: userId,
+                },
+                select: {
+                    id: true,
+                    nom: true,
+                    prenom: true,
+                    telephone: false,
+                    email: false,
+                    password: false,
+                },
+            });
+            res.status(200).json(response);
+        }
+    } catch {
+        res.status(401).json({
+            error: new Error("Invalid request!"),
         });
-    } else {
-        res.json({ message: "Sorry t'as pas les droits." });
     }
 });
 
