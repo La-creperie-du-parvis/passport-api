@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client";
 import passport from "passport";
 import bcrypt from "bcrypt";
 import LocalStrategy from "passport-local";
+import jwt from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 
@@ -66,7 +67,7 @@ router.get("/signin", function (req, res, next) {
 router.post(
     "/signin",
     passport.authenticate("local", {
-        successRedirect: "/profile",
+        successRedirect: "/connect",
         failureRedirect: "/signin",
     })
 );
@@ -115,6 +116,29 @@ router.post("/signup", async function (req, res, next) {
     }
 });
 
+router.get("/connect", function (req, res, next) {
+    if (req.user) {
+        const user = {
+            nom: req.user.nom,
+            prenom: req.user.prenom,
+            email: req.user.email,
+        };
+        res.status(200).json({
+            message: "Utilisateur connecté",
+            user: user,
+            token: jwt.sign(
+                { userId: user._id },
+                `${process.env.SECRET_TOKEN}`,
+                {
+                    expiresIn: "72h",
+                }
+            ),
+        });
+    } else {
+        res.json({ message: "Aucun utilisateur connecté" });
+    }
+});
+
 router.get("/profile", function (req, res, next) {
     if (req.user) {
         const user = {
@@ -122,9 +146,11 @@ router.get("/profile", function (req, res, next) {
             prenom: req.user.prenom,
             email: req.user.email,
         };
-        res.json({ message: "Utilisateur connecté", user: user });
+        res.status(200).json({
+            user: user,
+        });
     } else {
-        res.json({ message: "Aucun utilisateur connecté" });
+        res.json({ message: "Sorry t'as pas les droits." });
     }
 });
 
