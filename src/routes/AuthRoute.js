@@ -24,23 +24,22 @@ passport.use(
                     });
                 }
 
-                bcrypt.compare(password, user.password, (err, isMatch) => {
-                    if (err) {
-                        return done(err);
-                    }
-                    if (!isMatch) {
-                        return done(null, false, {
-                            message: "Incorrect email or password.",
-                        });
-                    }
-                    return done(null, user);
-                });
+                const isMatch = await bcrypt.compare(password, user.password);
+
+                if (!isMatch) {
+                    return done(null, false, {
+                        message: "Incorrect email or password.",
+                    });
+                }
+
+                return done(null, user);
             } catch (err) {
                 return done(err);
             }
         }
     )
 );
+
 passport.serializeUser(function (user, done) {
     done(null, user.id);
 });
@@ -61,7 +60,7 @@ passport.deserializeUser(async function (id, done) {
 const router = express.Router();
 
 router.get("/signin", function (req, res, next) {
-    res.json({ message: "Endpoint de connexion" });
+    res.json({ message: "Connection Failed" });
 });
 
 router.post(
@@ -114,14 +113,13 @@ router.post("/signup", async function (req, res, next) {
                     { userId: user },
                     `${process.env.SECRET_TOKEN_USER}`,
                     {
-                        expiresIn: "72",
+                        expiresIn: "3 days",
                     }
                 )}`,
             });
         });
     } catch (err) {
-        res.status(400).json({ error: "Failed to create user" });
-        return next(err);
+        return res.status(400).json({ error: "Failed to create user" });
     }
 });
 
@@ -140,7 +138,7 @@ router.get(`/connect`, function (req, res, next) {
                 { userId: user },
                 `${process.env.SECRET_TOKEN_USER}`,
                 {
-                    expiresIn: "72",
+                    expiresIn: "3 days",
                 }
             )}`,
         });
@@ -165,7 +163,6 @@ router.get("/profile", async function (req, res, next) {
         if (req.body.userId && req.body.userId !== userId) {
             throw "Invalid user ID";
         } else {
-            // next();
             const response = await prisma.user.findUnique({
                 where: {
                     id: userId,

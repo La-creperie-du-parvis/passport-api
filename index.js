@@ -33,10 +33,6 @@ app.use(passport.session());
 app.use(AuthRoute);
 app.use("/api", auth, UserRoute);
 
-app.get("/", (req, res) => {
-    res.send("Hello World!");
-});
-
 app.listen(port, () => {
     console.log(`App listening on port ${port}`);
 });
