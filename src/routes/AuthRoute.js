@@ -108,7 +108,16 @@ router.post("/signup", async function (req, res, next) {
             if (err) {
                 return next(err);
             }
-            res.redirect(`/profile/${user.id}`);
+            return res.status(201).json({
+                message: "Utilisateur connecté",
+                token: `Bearer ${jwt.sign(
+                    { userId: user },
+                    `${process.env.SECRET_TOKEN_USER}`,
+                    {
+                        expiresIn: "72",
+                    }
+                )}`,
+            });
         });
     } catch (err) {
         res.status(400).json({ error: "Failed to create user" });
@@ -129,7 +138,7 @@ router.get(`/connect`, function (req, res, next) {
             user: user,
             token: `Bearer ${jwt.sign(
                 { userId: user },
-                `${process.env.SECRET_TOKEN}`,
+                `${process.env.SECRET_TOKEN_USER}`,
                 {
                     expiresIn: "72",
                 }
@@ -144,7 +153,10 @@ router.get("/profile", async function (req, res, next) {
     try {
         const token = req.headers.authorization.split(" ")[1];
 
-        const decodedToken = jwt.verify(token, `${process.env.SECRET_TOKEN}`);
+        const decodedToken = jwt.verify(
+            token,
+            `${process.env.SECRET_TOKEN_USER}`
+        );
 
         const userId = decodedToken.userId.id; //token decodé
 
