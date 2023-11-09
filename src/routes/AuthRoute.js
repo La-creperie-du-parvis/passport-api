@@ -12,10 +12,13 @@ passport.use(
         { usernameField: "email" },
         async (email, password, done) => {
             try {
-                const user = await prisma.user.findUnique({
+                const user = await prisma.customer.findUnique({
                     where: {
-                        email: email,
+                        email
                     },
+                    include:{
+                        user: true
+                    }
                 });
 
                 if (!user) {
@@ -24,14 +27,12 @@ passport.use(
                     });
                 }
 
-                const isMatch = await bcrypt.compare(password, user.password);
-
+                const isMatch = await bcrypt.compare(password, user.user.password);
                 if (!isMatch) {
                     return done(null, false, {
                         message: "Incorrect email or password.",
                     });
                 }
-
                 return done(null, user);
             } catch (err) {
                 return done(err);
@@ -41,14 +42,14 @@ passport.use(
 );
 
 passport.serializeUser(function (user, done) {
-    done(null, user.id);
+    done(null, user.user.uuid);
 });
 
 passport.deserializeUser(async function (id, done) {
     try {
         const user = await prisma.user.findUnique({
             where: {
-                id: id,
+                uuid: id,
             },
         });
         done(null, user);
@@ -81,41 +82,46 @@ router.get("/signup", function (req, res, next) {
 });
 
 router.post("/signup", async function (req, res, next) {
-    const { nom, prenom, telephone, email, password } = req.body;
+    const { name, phone, email, password } = req.body;
 
     const hashedPassword = await bcrypt.hash(password, 10);
     try {
         const user = await prisma.user.create({
-            data: {
-                nom,
-                prenom,
-                telephone,
-                email,
-                password: hashedPassword,
+            include:{
+                customer: true,
             },
-            select: {
-                id: true,
-                nom: true,
-                prenom: true,
-                telephone: true,
-                email: true,
-                password: false,
+            data: {
+                password: hashedPassword,
+                customer: {
+                    create: {
+                        email,
+                        name,
+                        phone,
+                    },
+                },
             },
         });
 
-        req.login(user, function (err) {
+        const loginData = {
+            id: user.uuid,
+            name: user.customer.name,
+            email: user.customer.email,
+            password: user.password
+        }
+
+        req.login(loginData, function (err) {
             if (err) {
                 return next(err);
             }
             return res.status(201).json({
                 message: "Utilisateur connecté",
-                token: `Bearer ${jwt.sign(
-                    { userId: user },
+                token: jwt.sign(
+                    { user: user },
                     `${process.env.SECRET_TOKEN_USER}`,
                     {
                         expiresIn: "3 days",
                     }
-                )}`,
+                ),
             });
         });
     } catch (err) {
@@ -127,8 +133,7 @@ router.get(`/connect`, function (req, res, next) {
     if (req.user) {
         const user = {
             id: req.user.id,
-            nom: req.user.nom,
-            prenom: req.user.prenom,
+            nom: req.user.name,
             email: req.user.email,
         };
         res.status(200).json({
@@ -165,15 +170,7 @@ router.get("/profile", async function (req, res, next) {
         } else {
             const response = await prisma.user.findUnique({
                 where: {
-                    id: userId,
-                },
-                select: {
-                    id: true,
-                    nom: true,
-                    prenom: true,
-                    telephone: false,
-                    email: false,
-                    password: false,
+                    uuid: userId,
                 },
             });
             res.status(200).json(response);

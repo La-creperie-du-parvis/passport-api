@@ -1,62 +1,127 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgres"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          Int              @id @default(autoincrement())
-  nom         String           @db.VarChar(100)
-  prenom      String           @db.VarChar(100)
-  telephone   String           @db.VarChar(15)
-  email       String           @unique @db.VarChar(100)
-  password    String           @db.VarChar(100)
-  bookings    Booking[]
-  newsletters Newsletter[]
-  preferences UserPreference[]
-  Point       Point[]
-}
-
-model Booking {
-  id           Int      @id @default(autoincrement())
-  user_id      Int
-  booking_time DateTime
-  user         User     @relation(fields: [user_id], references: [id])
-}
-
 model Newsletter {
-  id                 Int     @id @default(autoincrement())
-  user_id            Int
-  receive_newsletter Boolean
-  user               User    @relation(fields: [user_id], references: [id])
+  id                 String   @id(map: "Newsletter_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receive_newsletter Boolean?
+  id_user            String?  @db.Uuid
+  user               user?    @relation(fields: [id_user], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Newsletter_user_uuid_fk")
 }
 
 model Preference {
-  id    Int              @id @default(autoincrement())
-  name  String           @db.VarChar(50)
+  id    String           @id(map: "Preference_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name  String?          @db.VarChar
   users UserPreference[]
 }
 
 model Point {
-  id       Int     @id @default(autoincrement())
-  user_id  Int
-  points   Int
-  redeemed Boolean
-  code     String  @unique
-  user     User    @relation(fields: [user_id], references: [id])
+  id       String   @id(map: "Point_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id  String?  @db.Uuid
+  points   Int?
+  redeemed Boolean?
+  code     String?  @unique(map: "Point_pk2") @db.VarChar
+  user     user?    @relation(fields: [user_id], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Point_user_uuid_fk")
 }
 
 model UserPreference {
-  user_id       Int
-  preference_id Int
-  user          User       @relation(fields: [user_id], references: [id])
-  preference    Preference @relation(fields: [preference_id], references: [id])
+  user_id       String     @db.Uuid
+  preference_id String     @db.Uuid
+  preference    Preference @relation(fields: [preference_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "UserPreference_Preference_id_fk")
+  user          user       @relation(fields: [user_id], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "UserPreference_user_uuid_fk")
 
-  @@id([user_id, preference_id])
+  @@id([user_id, preference_id], map: "UserPreference_pk")
+}
+
+model category {
+  uuid  String  @id(map: "Category_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name  String  @unique(map: "Category_pk2") @db.VarChar
+  dish  dish[]
+  drink drink[]
+}
+
+model customer {
+  uuid        String        @id(map: "Customer_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone       String        @db.VarChar
+  email       String        @unique(map: "customer_pk_email") @db.VarChar
+  name        String        @db.VarChar
+  id_user     String?       @unique(map: "customer_pk") @db.Uuid
+  user        user?         @relation(fields: [id_user], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Customer_User_uuid_fk")
+  reservation reservation[]
+}
+
+model dish {
+  uuid            String            @id(map: "Dish_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String?           @db.VarChar
+  id_category     String            @db.Uuid
+  category        category          @relation(fields: [id_category], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Category__fk")
+  dish_ingredient dish_ingredient[]
+  price           price[]
+
+  @@unique([name, id_category], map: "Dish_pk2")
+}
+
+model dish_ingredient {
+  id_dish       String     @db.Uuid
+  id_ingredient String     @db.Uuid
+  group         Int?
+  dish          dish       @relation(fields: [id_dish], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Dish_Ingredient_Dish_uuid_fk")
+  ingredient    ingredient @relation(fields: [id_ingredient], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Dish_Ingredient_Ingredient_uuid_fk")
+
+  @@id([id_ingredient, id_dish], map: "Dish_Ingredient_pk")
+}
+
+model drink {
+  uuid        String   @id(map: "drink_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique(map: "drink_pk2")
+  volume      String?
+  id_category String   @db.Uuid
+  category    category @relation(fields: [id_category], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "drink_category_uuid_fk")
+}
+
+model ingredient {
+  uuid            String            @id(map: "Ingredient_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String?           @unique(map: "Ingredient_pk2") @db.VarChar
+  dish_ingredient dish_ingredient[]
+}
+
+model price {
+  id_dish    String     @db.Uuid
+  id_type    String     @db.Uuid
+  price      Decimal?   @db.Money
+  dish       dish       @relation(fields: [id_dish], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Price_Dish_uuid_fk")
+  type_price type_price @relation(fields: [id_type], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Price__Type")
+
+  @@id([id_type, id_dish], map: "Price_pk")
+}
+
+model reservation {
+  number_places Int       @default(1)
+  date          DateTime  @db.Date
+  state         String    @default("En attente") @db.VarChar
+  id_customer   String?   @db.Uuid
+  uuid          String    @id(map: "Reservation_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  customer      customer? @relation(fields: [id_customer], references: [uuid], onDelete: NoAction, onUpdate: NoAction, map: "Reservation_Customer_uuid_fk")
+}
+
+model type_price {
+  uuid  String  @id(map: "TypePrice_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name  String? @unique(map: "TypePrice_pk2") @db.VarChar
+  price price[]
+}
+
+model user {
+  uuid        String           @id(map: "User_pk") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  password    String           @db.VarChar
+  role        String           @default("User") @db.VarChar
+  createdAt   DateTime?        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  Newsletter  Newsletter[]
+  Point       Point[]
+  preferences UserPreference[]
+  customer    customer?
 }
